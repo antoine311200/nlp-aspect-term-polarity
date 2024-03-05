@@ -25,7 +25,10 @@ class AspectModel(DistilBertForSequenceClassification):
         # MLP for classification on top of the concatenated features
         # This will need to be modified up to avoiding overfitting
         self.mlp = nn.Sequential(
-            nn.Linear(self.total_feat_dim, 16),
+            nn.Linear(self.total_feat_dim, 64),
+            nn.ReLU(),
+            self.dropout,
+            nn.Linear(64, 16),
             nn.ReLU(),
             self.dropout,
             nn.Linear(16, self.num_labels),

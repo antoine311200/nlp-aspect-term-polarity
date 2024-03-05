@@ -14,7 +14,7 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     batch_size: int = 32
-    learning_rate: float = 5e-4 # 3e-3
+    learning_rate: float = 5e-3 # 3e-3
     num_epochs: int = 10
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
@@ -66,7 +66,9 @@ class Classifier:
         self.model.to(device)
 
         num_train_steps = int(len(train_dataset) * self.config.num_epochs / self.config.batch_size)
+        print(f"Number of training steps: {num_train_steps}")
         num_warmup_steps = int(num_train_steps * 0.05)
+        print(f"Number of warmup steps: {num_warmup_steps}")
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
         scheduler = get_linear_schedule_with_warmup(
@@ -90,9 +92,9 @@ class Classifier:
 
                 avg_loss = sum(losses)/len(losses)
                 avg_accuracy = sum(accuracies)/len(accuracies)
-                print(f"loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}", end='\r')
+                print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}", end='\r')
 
-            print(f"epoch loss: {avg_loss:.2f} | epoch accuracy: {avg_accuracy:.2f}")
+            print(f"  epoch loss: {avg_loss:.2f} | epoch accuracy: {avg_accuracy:.2f}")
 
             val_losses = []
             val_accuracies = []
@@ -107,9 +109,9 @@ class Classifier:
 
             avg_loss = sum(val_losses)/len(val_losses)
             avg_accuracy = sum(val_accuracies)/len(val_accuracies)
-            print(f"loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}")
+            print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}")
 
-        print(f"validation loss: {avg_loss:.2f} | validation accuracy: {avg_accuracy:.2f}")
+        print(f"  validation loss: {avg_loss:.2f} | validation accuracy: {avg_accuracy:.2f}")
 
         # Save the model
         print("Finished training. Saving model...")
