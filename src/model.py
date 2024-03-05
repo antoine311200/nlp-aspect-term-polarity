@@ -60,8 +60,10 @@ class AspectModel(DistilBertForSequenceClassification):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        text_features = outputs['last_hidden_state'][:, 0, :] # Get the CLS embedding
-        text_features = self.dropout(text_features)
+        pooled_output = outputs['last_hidden_state'][:, 0, :] # Get the CLS embedding
+        pooled_output = self.pre_classifier(pooled_output)
+        pooled_output = nn.ReLU()(pooled_output)
+        text_features = self.dropout(pooled_output)
 
         # Concatenate additional features with text features
         additional_features = torch.cat([theme.unsqueeze(1), subtheme.unsqueeze(1), start_word.unsqueeze(1), end_word.unsqueeze(1)], dim=-1)
