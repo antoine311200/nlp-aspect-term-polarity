@@ -3,7 +3,7 @@ from typing import List
 import torch
 from torch.utils.data import DataLoader
 
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 from src.model import AspectModel
 from src.dataset import AspectDataset
@@ -14,8 +14,8 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     batch_size: int = 32
-    learning_rate: float = 3e-3
-    num_epochs: int = 5
+    learning_rate: float = 5e-4 # 3e-3
+    num_epochs: int = 10
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
 
@@ -65,70 +65,78 @@ class Classifier:
 
         self.model.to(device)
 
+        num_train_steps = int(len(train_dataset) * self.config.num_epochs / self.config.batch_size)
+        num_warmup_steps = int(num_train_steps * 0.05)
+
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_train_steps
+        )
+
+        print(f"Training model for {self.config.num_epochs} epochs on device {device}")
 
         for epoch in range(self.config.num_epochs):
             self.model.train()
             print(f"Epoch {epoch+1}/{self.config.num_epochs}")
+
+            losses = []
+            accuracies = []
+
             print('Training:')
             for batch in train_loader:
-                self.train_step(batch, optimizer)
+                loss, accuracy = self.train_step(batch, optimizer, scheduler)
+                losses.append(loss.item())
+                accuracies.append(accuracy.item())
+
+                avg_loss = sum(losses)/len(losses)
+                avg_accuracy = sum(accuracies)/len(accuracies)
+                print(f"loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}", end='\r')
+
+            print(f"epoch loss: {avg_loss:.2f} | epoch accuracy: {avg_accuracy:.2f}")
+
+            val_losses = []
+            val_accuracies = []
 
             print('Validation:')
+            self.model.eval()
             for batch in dev_loader:
-                self.validation_step(batch)
+                loss, accuracy = self.validation_step(batch)
 
-    def train_step(self, batch, optimizer):
-        input_ids       = batch["input_ids"].to(self.device)
-        attention_mask  = batch["attention_mask"].to(self.device)
-        theme           = batch["theme"].to(self.device)
-        subtheme        = batch["subtheme"].to(self.device)
-        start_word      = batch["start_word"].to(self.device)
-        end_word        = batch["end_word"].to(self.device)
-        label           = batch["label"].to(self.device)
+                val_losses.append(loss.item())
+                val_accuracies.append(accuracy.item())
 
-        optimizer.zero_grad()
+            avg_loss = sum(val_losses)/len(val_losses)
+            avg_accuracy = sum(val_accuracies)/len(val_accuracies)
+            print(f"loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}")
 
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            theme=theme,
-            subtheme=subtheme,
-            start_word=start_word,
-            end_word=end_word,
-            label=label
-        )
+        print(f"validation loss: {avg_loss:.2f} | validation accuracy: {avg_accuracy:.2f}")
 
-        loss = outputs.loss
+        # Save the model
+        print("Finished training. Saving model...")
+        torch.save(self.model.state_dict(), "aspect_model.pth")
+
+    def train_step(self, batch, optimizer, scheduler):
+        batch = {k: v.to(self.device) for k, v in batch.items()}
+        outputs = self.model(**batch)
+
+        loss = outputs['loss']
+        accuracy = (outputs['logits'].argmax(dim=1) == batch['label']).float().mean()
+
         loss.backward()
         optimizer.step()
+        scheduler.step()
+        optimizer.zero_grad()
 
-        print(f"Loss: {loss.item()}")
+        return loss, accuracy
 
     def validation_step(self, batch):
-        input_ids       = batch["input_ids"].to(self.device)
-        attention_mask  = batch["attention_mask"].to(self.device)
-        theme           = batch["theme"].to(self.device)
-        subtheme        = batch["subtheme"].to(self.device)
-        start_word      = batch["start_word"].to(self.device)
-        end_word        = batch["end_word"].to(self.device)
-        label           = batch["label"].to(self.device)
+        batch = {k: v.to(self.device) for k, v in batch.items()}
+        outputs = self.model(**batch)
 
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            theme=theme,
-            subtheme=subtheme,
-            start_word=start_word,
-            end_word=end_word,
-            label=label
-        )
+        loss = outputs['loss']
+        accuracy = (outputs['logits'].argmax(dim=1) == batch['label']).float().mean()
 
-        loss = outputs.loss
-        accuracy = (outputs.logits.argmax(dim=1) == label).float().mean()
-
-        print(f"Validation Loss: {loss.item()}")
-        print(f"Validation Accuracy: {accuracy.item()}")
+        return loss, accuracy
 
     def predict(self, data_filename: str, device: torch.device) -> List[str]:
         """Predicts class labels for the input instances in file 'datafile'
