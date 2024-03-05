@@ -7,9 +7,9 @@ from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 class AspectDataset(Dataset):
-    def __init__(self, datafile, tokenizer, max_length):
+    def __init__(self, datafile, tokenizer, max_length=256):
         # Load the data from the file
-        self.df = self.__preprocess(datafile)
+        self.df = self._preprocess(datafile)
 
         # Tokenize the sentences
         self.tokenizer = tokenizer
@@ -18,25 +18,38 @@ class AspectDataset(Dataset):
         # sep token from the tokenizer
         self.sep_token = tokenizer.sep_token
 
-        # Get the input IDs and attention masks
-        self.input_ids = []
-        self.attention_masks = []
+        self.df['input_ids'], self.df['attention_mask'] = zip(*self.df.apply(self._tokenize, axis=1))
 
-        for i in range(len(self.df)):
-            # Tokenize the word [sep] theme [sep] subtheme [sep] sentence
-            tokens = self.tokenizer.encode_plus(
-                self.df.loc[i, 'word'],
-                self.df.loc[i, 'theme'],
-                self.df.loc[i, 'subtheme'],
-                self.df.loc[i, 'sentence'],
-                max_length=self.max_length,
-                padding='max_length',
-                truncation=True,
-                return_tensors='pt'
-            )
+    def __len__(self):
+        return len(self.df)
 
+    def __getitem__(self, idx):
+        return {
+            'input_ids': torch.tensor(self.df['input_ids'][idx]),
+            'attention_mask': torch.tensor(self.df['attention_mask'][idx]),
+            'label': torch.tensor(self.df['label'][idx]),
+            'theme': torch.tensor(self.df['theme_encoded'][idx]),
+            'subtheme': torch.tensor(self.df['subtheme_encoded'][idx]),
+            'start_word': torch.tensor(self.df['start_word'][idx]),
+            'end_word': torch.tensor(self.df['end_word'][idx]),
+        }
 
-    def __preprocess(datafile):
+    def _tokenize(self, row):
+        result = self.tokenizer.encode_plus(
+            row['word'] + self.sep_token +
+            row['theme'] + self.sep_token +
+            row['subtheme'] + self.sep_token +
+            row['sentence'],
+
+            add_special_tokens=True,
+            max_length=self.max_length,
+            padding='max_length',
+            return_attention_mask=True,
+        )
+        return result['input_ids'], result['attention_mask']
+
+    @staticmethod
+    def _preprocess(datafile):
         column_names = ['label', 'aspect', 'word', 'pos', 'sentence']
         df = pd.read_csv(datafile, sep='\t', header=None, names=column_names)
 
