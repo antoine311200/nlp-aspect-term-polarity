@@ -170,3 +170,7 @@ cython_debug/
 
 # The name of the python environment
 nlpenv/
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
