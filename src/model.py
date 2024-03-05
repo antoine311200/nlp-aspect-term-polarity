@@ -46,6 +46,7 @@ class AspectModel(DistilBertForSequenceClassification):
         start_word,
         end_word,
         label,
+        class_weights=None,
         head_mask=None,
         inputs_embeds=None,
         output_attentions=None,
@@ -75,7 +76,7 @@ class AspectModel(DistilBertForSequenceClassification):
 
         loss = None
         if label is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(weight=class_weights)
             loss = loss_fct(logits.view(-1, self.num_labels), label.view(-1))
 
         return {
