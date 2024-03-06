@@ -1,23 +1,26 @@
 from typing import List
+from dataclasses import dataclass
 
 import torch
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
+from sklearn.metrics import f1_score as f1_scorer
 
 from src.model import AspectModel
 from src.dataset import AspectDataset
 
-from dataclasses import dataclass
 
 
 @dataclass
 class Config:
     batch_size: int = 32
-    learning_rate: float = 5e-3 # 3e-3
+    learning_rate: float = 1e-4 # 3e-3
     num_epochs: int = 10
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
+    scheduler: str = "cosine"
 
 
 class Classifier:
@@ -70,10 +73,8 @@ class Classifier:
         num_warmup_steps = int(num_train_steps * 0.05)
         print(f"Number of warmup steps: {num_warmup_steps}")
 
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_train_steps
-        )
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.learning_rate, weight_decay=1e-2)
+        scheduler = self.get_scheduler(optimizer, num_warmup_steps, num_train_steps)
 
         print(f"Training model for {self.config.num_epochs} epochs on device {device}")
 
@@ -83,33 +84,40 @@ class Classifier:
 
             losses = []
             accuracies = []
+            f1_scores = []
 
             print('Training:')
             for batch in train_loader:
-                loss, accuracy = self.train_step(batch, optimizer, scheduler)
+                loss, accuracy, f1_score = self.train_step(batch, optimizer, scheduler, class_weights=train_dataset.class_weights)
                 losses.append(loss.item())
                 accuracies.append(accuracy.item())
+                f1_scores.append(f1_score)
 
                 avg_loss = sum(losses)/len(losses)
                 avg_accuracy = sum(accuracies)/len(accuracies)
-                print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}", end='\r')
+                avg_f1_score = sum(f1_scores)/len(f1_scores)
 
-            print(f"  epoch loss: {avg_loss:.2f} | epoch accuracy: {avg_accuracy:.2f}")
+                print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f} | f1 score: {avg_f1_score:.2f}", end='\r')
+
+            print(f"  epoch loss: {avg_loss:.2f} | epoch accuracy: {avg_accuracy:.2f} | epoch f1 score: {avg_f1_score:.2f}")
 
             val_losses = []
             val_accuracies = []
+            val_f1_scores = []
 
             print('Validation:')
             self.model.eval()
             for batch in dev_loader:
-                loss, accuracy = self.validation_step(batch)
+                loss, accuracy, f1_score = self.validation_step(batch, class_weights=dev_dataset.class_weights)
 
                 val_losses.append(loss.item())
                 val_accuracies.append(accuracy.item())
+                val_f1_scores.append(f1_score)
 
             avg_loss = sum(val_losses)/len(val_losses)
             avg_accuracy = sum(val_accuracies)/len(val_accuracies)
-            print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f}")
+            avg_f1_score = sum(val_f1_scores)/len(val_f1_scores)
+            print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f} | f1 score: {avg_f1_score:.2f}")
 
         print(f"  validation loss: {avg_loss:.2f} | validation accuracy: {avg_accuracy:.2f}")
 
@@ -117,28 +125,32 @@ class Classifier:
         print("Finished training. Saving model...")
         torch.save(self.model.state_dict(), "aspect_model.pth")
 
-    def train_step(self, batch, optimizer, scheduler):
+    def train_step(self, batch, optimizer, scheduler, class_weights=None):
         batch = {k: v.to(self.device) for k, v in batch.items()}
+        batch['class_weights'] = class_weights
         outputs = self.model(**batch)
 
         loss = outputs['loss']
         accuracy = (outputs['logits'].argmax(dim=1) == batch['label']).float().mean()
+        f1_score = f1_scorer(batch['label'].cpu(), outputs['logits'].argmax(dim=1).cpu(), average='weighted')
 
         loss.backward()
         optimizer.step()
         scheduler.step()
         optimizer.zero_grad()
 
-        return loss, accuracy
+        return loss, accuracy, f1_score
 
-    def validation_step(self, batch):
+    def validation_step(self, batch, class_weights=None):
         batch = {k: v.to(self.device) for k, v in batch.items()}
+        batch['class_weights'] = class_weights
         outputs = self.model(**batch)
 
         loss = outputs['loss']
         accuracy = (outputs['logits'].argmax(dim=1) == batch['label']).float().mean()
+        f1_score = f1_scorer(batch['label'].cpu(), outputs['logits'].argmax(dim=1).cpu(), average='weighted')
 
-        return loss, accuracy
+        return loss, accuracy, f1_score
 
     def predict(self, data_filename: str, device: torch.device) -> List[str]:
         """Predicts class labels for the input instances in file 'datafile'
@@ -147,3 +159,11 @@ class Classifier:
           - DO NOT CHANGE THE SIGNATURE OF THIS METHOD
           - PUT THE MODEL and DATA on the specified device! Do not use another device
         """
+
+    def get_scheduler(self, optimizer, num_warmup_steps, num_training_steps):
+        if self.config.scheduler == "linear":
+            return get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
+        elif self.config.scheduler == "cosine":
+            return CosineAnnealingLR(optimizer, T_max=num_training_steps, eta_min=0.0)
+        else:
+            raise ValueError(f"Invalid scheduler: {self.config.scheduler}")

@@ -3,13 +3,12 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils.class_weight import compute_class_weight
 
 import pandas as pd
 
 class AspectDataset(Dataset):
     def __init__(self, datafile, tokenizer, max_length=256):
-        # Load the data from the file
-        self.df = self._preprocess(datafile)
 
         # Tokenize the sentences
         self.tokenizer = tokenizer
@@ -18,7 +17,11 @@ class AspectDataset(Dataset):
         # sep token from the tokenizer
         self.sep_token = tokenizer.sep_token
 
+        # Load the data from the file
+        self.df = self._preprocess(datafile)
         self.df['input_ids'], self.df['attention_mask'] = zip(*self.df.apply(self._tokenize, axis=1))
+
+        self.class_weights = torch.tensor(compute_class_weight('balanced', classes=self.df['label'].unique(), y=self.df['label']))
 
     def __len__(self):
         return len(self.df)

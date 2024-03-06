@@ -19,18 +19,18 @@ class AspectModel(DistilBertForSequenceClassification):
         self.cat_feat_dim = 4  # 4 categories: theme, subtheme, start_word, end_word
         self.total_feat_dim = self.text_feat_dim + self.cat_feat_dim
 
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.2)
         self.softmax = nn.Softmax(dim=1)
 
         # MLP for classification on top of the concatenated features
         # This will need to be modified up to avoiding overfitting
         self.mlp = nn.Sequential(
-            nn.Linear(self.total_feat_dim, 64),
+            nn.Linear(self.total_feat_dim, 16),
             nn.ReLU(),
             self.dropout,
-            nn.Linear(64, 16),
-            nn.ReLU(),
-            self.dropout,
+            # nn.Linear(64, 16),
+            # nn.ReLU(),
+            # self.dropout,
             nn.Linear(16, self.num_labels),
         )
 
@@ -60,8 +60,10 @@ class AspectModel(DistilBertForSequenceClassification):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        text_features = outputs['last_hidden_state'][:, 0, :] # Get the CLS embedding
-        text_features = self.dropout(text_features)
+        pooled_output = outputs['last_hidden_state'][:, 0, :] # Get the CLS embedding
+        pooled_output = self.pre_classifier(pooled_output)
+        pooled_output = nn.ReLU()(pooled_output)
+        text_features = self.dropout(pooled_output)
 
         # Concatenate additional features with text features
         additional_features = torch.cat([theme.unsqueeze(1), subtheme.unsqueeze(1), start_word.unsqueeze(1), end_word.unsqueeze(1)], dim=-1)
@@ -73,6 +75,9 @@ class AspectModel(DistilBertForSequenceClassification):
 
         loss = None
         if label is not None:
+            class_weights = class_weights.to(logits.device)
+            class_weights = class_weights.float()
+
             loss_fct = nn.CrossEntropyLoss(weight=class_weights)
             loss = loss_fct(logits.view(-1, self.num_labels), label.view(-1))
 
