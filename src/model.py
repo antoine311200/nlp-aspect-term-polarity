@@ -75,6 +75,9 @@ class AspectModel(DistilBertForSequenceClassification):
 
         loss = None
         if label is not None:
+            class_weights = class_weights.to(logits.device)
+            class_weights = class_weights.float()
+
             loss_fct = nn.CrossEntropyLoss(weight=class_weights)
             loss = loss_fct(logits.view(-1, self.num_labels), label.view(-1))
 

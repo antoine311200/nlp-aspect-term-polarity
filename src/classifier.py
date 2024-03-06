@@ -86,7 +86,7 @@ class Classifier:
 
             print('Training:')
             for batch in train_loader:
-                loss, accuracy = self.train_step(batch, optimizer, scheduler)
+                loss, accuracy = self.train_step(batch, optimizer, scheduler, class_weights=train_dataset.class_weights)
                 losses.append(loss.item())
                 accuracies.append(accuracy.item())
 
@@ -102,7 +102,7 @@ class Classifier:
             print('Validation:')
             self.model.eval()
             for batch in dev_loader:
-                loss, accuracy = self.validation_step(batch)
+                loss, accuracy = self.validation_step(batch, class_weights=dev_dataset.class_weights)
 
                 val_losses.append(loss.item())
                 val_accuracies.append(accuracy.item())
@@ -117,8 +117,9 @@ class Classifier:
         print("Finished training. Saving model...")
         torch.save(self.model.state_dict(), "aspect_model.pth")
 
-    def train_step(self, batch, optimizer, scheduler):
+    def train_step(self, batch, optimizer, scheduler, class_weights=None):
         batch = {k: v.to(self.device) for k, v in batch.items()}
+        batch['class_weights'] = class_weights
         outputs = self.model(**batch)
 
         loss = outputs['loss']
@@ -131,8 +132,9 @@ class Classifier:
 
         return loss, accuracy
 
-    def validation_step(self, batch):
+    def validation_step(self, batch, class_weights=None):
         batch = {k: v.to(self.device) for k, v in batch.items()}
+        batch['class_weights'] = class_weights
         outputs = self.model(**batch)
 
         loss = outputs['loss']
