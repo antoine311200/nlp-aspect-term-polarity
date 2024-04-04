@@ -8,8 +8,8 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 from sklearn.metrics import f1_score as f1_scorer
 
-from src.model import AspectModel
-from src.dataset import AspectDataset
+from model import AspectModel
+from dataset import AspectDataset
 
 
 
@@ -37,9 +37,9 @@ class Classifier:
         This should create and initilize the model. Does not take any arguments.
 
         """
-        self.config = config
-        self.model_name = config.model_name
-        self.num_labels = config.num_labels
+        self.config = config if config is not None else Config()
+        self.model_name = self.config.model_name
+        self.num_labels = self.config.num_labels
 
         print(f"Using model: {self.model_name}")
         print(f"Number of labels: {self.num_labels}")
@@ -159,6 +159,25 @@ class Classifier:
           - DO NOT CHANGE THE SIGNATURE OF THIS METHOD
           - PUT THE MODEL and DATA on the specified device! Do not use another device
         """
+        dataset = AspectDataset(data_filename, self.tokenizer)
+        loader = DataLoader(dataset, batch_size=self.config.batch_size)
+
+        self.model.to(device)
+        self.model.eval()
+
+
+        predictions = []
+        for batch in loader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = self.model(**batch)
+
+            predictions.extend(outputs['logits'].argmax(dim=1).cpu().numpy())
+
+        reverse_label = {0: 'neutral', 1: 'positive', 2: 'negative'}
+        
+        return [reverse_label[pred] for pred in predictions]
+
+
 
     def get_scheduler(self, optimizer, num_warmup_steps, num_training_steps):
         if self.config.scheduler == "linear":
