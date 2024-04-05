@@ -88,6 +88,8 @@ class Classifier:
 
         print(f"Training model for {self.config.num_epochs} epochs on device {device}")
 
+        best_accuracy = 0
+
         for epoch in range(self.config.num_epochs):
             self.model.train()
             print(f"Epoch {epoch+1}/{self.config.num_epochs}")
@@ -129,11 +131,15 @@ class Classifier:
             avg_f1_score = sum(val_f1_scores)/len(val_f1_scores)
             print(f"  loss: {avg_loss:.2f} | accuracy: {avg_accuracy:.2f} | f1 score: {avg_f1_score:.2f}")
 
+            if avg_accuracy > best_accuracy:
+                best_accuracy = avg_accuracy
+                torch.save(self.model.state_dict(), "aspect_model.pth")
+
         print(f"  validation loss: {avg_loss:.2f} | validation accuracy: {avg_accuracy:.2f}")
 
-        # Save the model
-        print("Finished training. Saving model...")
-        torch.save(self.model.state_dict(), "aspect_model.pth")
+        # Load the best model
+        print("Finished training.")
+        self.model.load_state_dict(torch.load("aspect_model.pth"))
 
     def train_step(self, batch, optimizer, scheduler, class_weights=None):
         batch = {k: v.to(self.device) for k, v in batch.items()}
