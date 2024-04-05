@@ -82,8 +82,24 @@ class AspectDataset(Dataset):
         df['theme'] = df['aspect'].apply(lambda x: x.split('#')[0])
         df['subtheme'] = df['aspect'].apply(lambda x: x.split('#')[1])
 
-        le = LabelEncoder()
-        df['theme_encoded'] = le.fit_transform(df['theme'])
-        df['subtheme_encoded'] = le.fit_transform(df['subtheme'])
+        
+        theme_enum = {
+            "FOOD": 0,
+            "SERVICE": 1,
+            "AMBIENCE": 2,
+            "RESTAURANT": 3,
+            "DRINKS": 4,
+            "LOCATION": 5,
+        }
+        subtheme_enum = {
+            "QUALITY": 0,
+            "PRICES": 1,
+            "STYLE_OPTIONS": 2,
+            "GENERAL": 3,
+            "MISCELLANEOUS": 4,
+        }
+
+        df['theme_encoded'] = df['theme'].apply(lambda x: theme_enum[x])
+        df['subtheme_encoded'] = df['subtheme'].apply(lambda x: subtheme_enum[x])
 
         return df
