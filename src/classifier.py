@@ -21,7 +21,7 @@ class Config:
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
     scheduler: str = "cosine"
-    use_class_weights: bool = False
+    use_class_weights: bool = True
     use_augmentation: bool = False
 
 
