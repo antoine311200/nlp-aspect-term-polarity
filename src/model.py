@@ -62,7 +62,7 @@ class AspectModel(DistilBertForSequenceClassification):
             return_dict=return_dict,
         )
         pooled_output = outputs['last_hidden_state'][:, 0, :] # Get the CLS embedding
-        pooled_output = self.pre_classifier(pooled_output)
+        # pooled_output = self.pre_classifier(pooled_output)
         pooled_output = nn.ReLU()(pooled_output)
         text_features = self.dropout(pooled_output)
 
