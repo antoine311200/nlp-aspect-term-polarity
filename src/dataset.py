@@ -29,8 +29,8 @@ class AspectDataset(Dataset):
         self.df['input_ids'], self.df['attention_mask'] = zip(*self.df.apply(self._tokenize, axis=1))
 
         self.class_weights = torch.tensor(compute_class_weight('balanced', classes=self.df['label'].unique(), y=self.df['label']))
+        
         self.use_augmentation = use_augmentation
-        self.use_augmentation = False # Disable augmentation for now
         if self.use_augmentation:
             self.theme_words = {}
             for theme in self.df['theme'].unique():
@@ -41,10 +41,7 @@ class AspectDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.use_augmentation and idx >= len(self.df):
-            # print("Augmenting")
             return self.get_augmentation(idx - len(self.df))
-        
-        # print("Not Augmenting")
         
         return {
             'input_ids': torch.tensor(self.df['input_ids'][idx]),
