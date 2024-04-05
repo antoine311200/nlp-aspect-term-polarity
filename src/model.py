@@ -8,11 +8,12 @@ from transformers import (
 
 class AspectModel(DistilBertForSequenceClassification):
 
-    def __init__(self, num_labels, model_name="distilbert-base-uncased"):
+    def __init__(self, num_labels, model_name="distilbert-base-uncased", use_class_weights=False):
         config = AutoConfig.from_pretrained(model_name, num_labels=num_labels)
         super(AspectModel, self).__init__(config)
         self.num_labels = num_labels
         self.model_name = model_name
+        self.use_class_weights = use_class_weights
 
         # Hard coded dimensions for now
         self.text_feat_dim = 768  # DistilBert hidden size
@@ -78,9 +79,13 @@ class AspectModel(DistilBertForSequenceClassification):
 
         loss = None
         if label is not None:
+            if not self.use_class_weights:
+                    class_weights = None
+                    
             if class_weights is not None:
                 class_weights = class_weights.to(logits.device)
                 class_weights = class_weights.float()
+                
 
             loss_fct = nn.CrossEntropyLoss(weight=class_weights)
             loss = loss_fct(logits.view(-1, self.num_labels), label.view(-1))
