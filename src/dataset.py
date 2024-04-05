@@ -16,12 +16,12 @@ class AspectDataset(Dataset):
 
         # sep token from the tokenizer
         self.sep_token = tokenizer.sep_token
-        
-        self.theme_token = tokenizer.theme_token
-        self.subtheme_token = tokenizer.subtheme_token
+
+        self.theme_token = self.sep_token#tokenizer.theme_token
+        self.subtheme_token = self.sep_token#tokenizer.subtheme_token
         self.start_word_token = tokenizer.start_word_token
         self.end_word_token = tokenizer.end_word_token
-        
+
         self.special_tokens = tokenizer.special_tokens_map
 
         # Load the data from the file
@@ -29,7 +29,7 @@ class AspectDataset(Dataset):
         self.df['input_ids'], self.df['attention_mask'] = zip(*self.df.apply(self._tokenize, axis=1))
 
         self.class_weights = torch.tensor(compute_class_weight('balanced', classes=self.df['label'].unique(), y=self.df['label']))
-        
+
         self.use_augmentation = use_augmentation
         if self.use_augmentation:
             self.theme_words = {}

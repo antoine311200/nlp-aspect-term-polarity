@@ -15,13 +15,13 @@ from dataset import AspectDataset
 
 @dataclass
 class Config:
-    batch_size: int = 16
-    learning_rate: float = 1e-4 # 3e-3
+    batch_size: int = 12
+    learning_rate: float = 3e-5 # 3e-3
     num_epochs: int = 10
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
     scheduler: str = "cosine"
-    use_class_weights: bool = True
+    use_class_weights: bool = False
     use_augmentation: bool = False
 
 
@@ -48,12 +48,17 @@ class Classifier:
 
         self.model = AspectModel(self.num_labels, self.model_name, self.config.use_class_weights)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.tokenizer.theme_token = "[THEME]"
-        self.tokenizer.subtheme_token = "[SUBTHEME]"
+        # self.tokenizer.theme_token = "[THEME]"
+        # self.tokenizer.subtheme_token = "[SUBTHEME]"
         self.tokenizer.start_word_token = "[START_WORD]"
         self.tokenizer.end_word_token = "[END_WORD]"
         self.tokenizer.add_special_tokens({
-            'additional_special_tokens': [self.tokenizer.theme_token, self.tokenizer.subtheme_token, self.tokenizer.start_word_token, self.tokenizer.end_word_token]
+            'additional_special_tokens': [
+                # self.tokenizer.theme_token,
+                # self.tokenizer.subtheme_token,
+                self.tokenizer.start_word_token,
+                self.tokenizer.end_word_token
+            ]
         })
         self.model.distilbert.resize_token_embeddings(len(self.tokenizer))
 
