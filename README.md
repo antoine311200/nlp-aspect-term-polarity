@@ -42,11 +42,11 @@ The goal of this project is to classify between three labels (neutral / positive
 
 
 
-![sample.png](images\sample.png)
+![images\sample.png](https://raw.githubusercontent.com/antoine311200/nlp-aspect-term-polarity/main/images/sample.png?token=GHSAT0AAAAAACG4K2F3SCQLV2ANNDGIGJYKZQQFRKA)
 
 The arhictecture that we used remains simple with a pretrained DistilBert model from which the pooled output are then concatenated with additional features from the aspect-term of the sample and fed to a multi-layer perceptron.
 
-![model.png](images\model.png)
+![images\model.png](https://raw.githubusercontent.com/antoine311200/nlp-aspect-term-polarity/test-models/images/model.png?token=GHSAT0AAAAAACG4K2F3V2A4RVTV2ZP2OLMAZQQFQOQ)
 
 
 
