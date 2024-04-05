@@ -46,6 +46,14 @@ class Classifier:
 
         self.model = AspectModel(self.num_labels, self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.tokenizer.theme_token = "[THEME]"
+        self.tokenizer.subtheme_token = "[SUBTHEME]"
+        self.tokenizer.start_word_token = "[START_WORD]"
+        self.tokenizer.end_word_token = "[END_WORD]"
+        self.tokenizer.add_special_tokens({
+            'additional_special_tokens': [self.tokenizer.theme_token, self.tokenizer.subtheme_token, self.tokenizer.start_word_token, self.tokenizer.end_word_token]
+        })
+        self.model.distilbert.resize_token_embeddings(len(self.tokenizer))
 
     def train(self, train_filename: str, dev_filename: str, device: torch.device):
         """
