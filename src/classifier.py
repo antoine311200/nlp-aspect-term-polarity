@@ -22,6 +22,7 @@ class Config:
     model_name: str = "distilbert-base-uncased"
     scheduler: str = "cosine"
     use_class_weights: bool = True
+    use_augmentation: bool = False
 
 
 class Classifier:
@@ -67,8 +68,11 @@ class Classifier:
         """
         self.device = device
 
-        train_dataset = AspectDataset(train_filename, self.tokenizer)
+        train_dataset = AspectDataset(train_filename, self.tokenizer, self.config.use_augmentation)
         dev_dataset = AspectDataset(dev_filename, self.tokenizer)
+
+        # print(train_dataset[0]["input_ids"].shape)
+        # print(train_dataset[len(train_dataset)-1]["input_ids"].shape)
 
         train_loader = DataLoader(
             train_dataset, batch_size=self.config.batch_size, shuffle=True
