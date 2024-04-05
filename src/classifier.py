@@ -15,12 +15,14 @@ from dataset import AspectDataset
 
 @dataclass
 class Config:
-    batch_size: int = 32
+    batch_size: int = 16
     learning_rate: float = 1e-4 # 3e-3
     num_epochs: int = 10
     num_labels: int = 3
     model_name: str = "distilbert-base-uncased"
     scheduler: str = "cosine"
+    use_class_weights: bool = True
+    use_augmentation: bool = False
 
 
 class Classifier:
@@ -44,7 +46,7 @@ class Classifier:
         print(f"Using model: {self.model_name}")
         print(f"Number of labels: {self.num_labels}")
 
-        self.model = AspectModel(self.num_labels, self.model_name)
+        self.model = AspectModel(self.num_labels, self.model_name, self.config.use_class_weights)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.tokenizer.theme_token = "[THEME]"
         self.tokenizer.subtheme_token = "[SUBTHEME]"
@@ -66,7 +68,7 @@ class Classifier:
         """
         self.device = device
 
-        train_dataset = AspectDataset(train_filename, self.tokenizer)
+        train_dataset = AspectDataset(train_filename, self.tokenizer, use_augmentation=self.config.use_augmentation)
         dev_dataset = AspectDataset(dev_filename, self.tokenizer)
 
         train_loader = DataLoader(
@@ -144,7 +146,8 @@ class Classifier:
 
         loss.backward()
         optimizer.step()
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         optimizer.zero_grad()
 
         return loss, accuracy, f1_score
@@ -192,5 +195,7 @@ class Classifier:
             return get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
         elif self.config.scheduler == "cosine":
             return CosineAnnealingLR(optimizer, T_max=num_training_steps, eta_min=0.0)
+        elif self.config.scheduler == "none":
+            return None
         else:
             raise ValueError(f"Invalid scheduler: {self.config.scheduler}")

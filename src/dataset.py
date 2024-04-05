@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-from sklearn.preprocessing import LabelEncoder
 from sklearn.utils.class_weight import compute_class_weight
 
 import pandas as pd
+import random
 
 class AspectDataset(Dataset):
-    def __init__(self, datafile, tokenizer, max_length=256):
+    def __init__(self, datafile, tokenizer, max_length=256, use_augmentation=False):
 
         # Tokenize the sentences
         self.tokenizer = tokenizer
@@ -29,11 +29,20 @@ class AspectDataset(Dataset):
         self.df['input_ids'], self.df['attention_mask'] = zip(*self.df.apply(self._tokenize, axis=1))
 
         self.class_weights = torch.tensor(compute_class_weight('balanced', classes=self.df['label'].unique(), y=self.df['label']))
+        
+        self.use_augmentation = use_augmentation
+        if self.use_augmentation:
+            self.theme_words = {}
+            for theme in self.df['theme'].unique():
+                self.theme_words[theme] = self.df[self.df['theme'] == theme]['word'].unique()
 
     def __len__(self):
-        return len(self.df)
+        return len(self.df) * 2 if self.use_augmentation else len(self.df)
 
     def __getitem__(self, idx):
+        if self.use_augmentation and idx >= len(self.df):
+            return self.get_augmentation(idx - len(self.df))
+        
         return {
             'input_ids': torch.tensor(self.df['input_ids'][idx]),
             'attention_mask': torch.tensor(self.df['attention_mask'][idx]),
@@ -82,8 +91,46 @@ class AspectDataset(Dataset):
         df['theme'] = df['aspect'].apply(lambda x: x.split('#')[0])
         df['subtheme'] = df['aspect'].apply(lambda x: x.split('#')[1])
 
-        le = LabelEncoder()
-        df['theme_encoded'] = le.fit_transform(df['theme'])
-        df['subtheme_encoded'] = le.fit_transform(df['subtheme'])
+        
+        theme_enum = {
+            "FOOD": 0,
+            "SERVICE": 1,
+            "AMBIENCE": 2,
+            "RESTAURANT": 3,
+            "DRINKS": 4,
+            "LOCATION": 5,
+        }
+        subtheme_enum = {
+            "QUALITY": 0,
+            "PRICES": 1,
+            "STYLE_OPTIONS": 2,
+            "GENERAL": 3,
+            "MISCELLANEOUS": 4,
+        }
+
+        df['theme_encoded'] = df['theme'].apply(lambda x: theme_enum[x])
+        df['subtheme_encoded'] = df['subtheme'].apply(lambda x: subtheme_enum[x])
 
         return df
+    
+    def get_augmentation(self, idx):
+        row = self.df.iloc[idx]
+        candidate_words = self.theme_words[row["theme"]]
+        new_word = candidate_words[random.randint(0, len(candidate_words)-1)]
+        new_row = row.copy()
+
+        new_row["word"] = new_word
+        new_row["end_word"] = new_row["start_word"] + len(new_word)
+        new_row["sentence"] = row["sentence"][:row["start_word"]] + new_word + row["sentence"][row["end_word"]:]
+        input_ids, attention_mask = self._tokenize(new_row)
+
+        return {
+            'input_ids': torch.tensor(input_ids),
+            'attention_mask': torch.tensor(attention_mask),
+            'label': torch.tensor(new_row['label']),
+            'theme': torch.tensor(new_row['theme_encoded']),
+            'subtheme': torch.tensor(new_row['subtheme_encoded']),
+            'start_word': torch.tensor(new_row['start_word']),
+            'end_word': torch.tensor(new_row['end_word']),
+        }
+    
