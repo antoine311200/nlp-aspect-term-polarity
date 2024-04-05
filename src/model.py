@@ -16,7 +16,7 @@ class AspectModel(DistilBertForSequenceClassification):
 
         # Hard coded dimensions for now
         self.text_feat_dim = 768  # DistilBert hidden size
-        self.cat_feat_dim = 4  # 4 categories: theme, subtheme, start_word, end_word
+        self.cat_feat_dim = 11 # 6 for theme, 5 for subtheme
         self.total_feat_dim = self.text_feat_dim + self.cat_feat_dim
 
         self.dropout = nn.Dropout(0.2)
@@ -66,7 +66,10 @@ class AspectModel(DistilBertForSequenceClassification):
         text_features = self.dropout(pooled_output)
 
         # Concatenate additional features with text features
-        additional_features = torch.cat([theme.unsqueeze(1), subtheme.unsqueeze(1), start_word.unsqueeze(1), end_word.unsqueeze(1)], dim=-1)
+        theme = torch.nn.functional.one_hot(theme.long(), num_classes=6).float()
+        subtheme = torch.nn.functional.one_hot(subtheme.long(), num_classes=5).float()
+
+        additional_features = torch.cat([theme, subtheme], dim=-1)
         all_features = torch.cat((text_features, additional_features), dim=-1)
 
         # Get the logits and probabilities from the classifier

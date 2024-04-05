@@ -16,6 +16,13 @@ class AspectDataset(Dataset):
 
         # sep token from the tokenizer
         self.sep_token = tokenizer.sep_token
+        
+        self.theme_token = tokenizer.theme_token
+        self.subtheme_token = tokenizer.subtheme_token
+        self.start_word_token = tokenizer.start_word_token
+        self.end_word_token = tokenizer.end_word_token
+        
+        self.special_tokens = tokenizer.special_tokens_map
 
         # Load the data from the file
         self.df = self._preprocess(datafile)
@@ -38,17 +45,22 @@ class AspectDataset(Dataset):
         }
 
     def _tokenize(self, row):
+
+        sentence = row['sentence']
+
+        sentence = sentence[:row['start_word']] + self.start_word_token  +" "+ sentence[row['start_word']:row['end_word']] + " " + self.end_word_token + sentence[row['end_word']:]
         result = self.tokenizer.encode_plus(
-            row['word'] + self.sep_token +
-            row['theme'] + self.sep_token +
+            row['word'] + self.theme_token +
+            row['theme'] + self.subtheme_token +
             row['subtheme'] + self.sep_token +
-            row['sentence'],
+            sentence,
 
             add_special_tokens=True,
             max_length=self.max_length,
             padding='max_length',
             return_attention_mask=True,
         )
+        
         return result['input_ids'], result['attention_mask']
 
     @staticmethod
