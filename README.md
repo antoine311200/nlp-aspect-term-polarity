@@ -42,11 +42,11 @@ The goal of this project is to classify between three labels (neutral / positive
 
 
 
-![sample.png](.\images\sample.png)
+![sample.png](.\images\sample.png?raw=true)
 
 The arhictecture that we used remains simple with a pretrained DistilBert model from which the pooled output are then concatenated with additional features from the aspect-term of the sample and fed to a multi-layer perceptron.
 
-![model.png](.\images\model.png)
+![model.png](.\images\model.png?raw=true)
 
 
 
