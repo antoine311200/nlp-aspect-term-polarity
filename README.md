@@ -73,6 +73,6 @@ Young, Tom, et al. "Recent trends in deep learning based natural language proces
 
 Sanh, Victor, et al. "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter." arXiv preprint arXiv:1910.01108 (2019). [[pdf](https://arxiv.org/pdf/1910.01108)]
 
-## Licence
+## License
 
 Centrale Supélec
