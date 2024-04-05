@@ -41,13 +41,11 @@ python run.py
 The goal of this project is to classify between three labels (neutral / positive / negative) how a sentence is perceived given an aspect of it (wether it is about the food quality, the general ambiance and so on) highlighted by a specific word in the sentence.
 
 
-
-![images\sample.png](https://raw.githubusercontent.com/antoine311200/nlp-aspect-term-polarity/main/images/sample.png?token=GHSAT0AAAAAACG4K2F3SCQLV2ANNDGIGJYKZQQFRKA)
+<img width="1366" alt="sample" src="https://github.com/antoine311200/nlp-aspect-term-polarity/assets/41137133/5a8898ae-93f8-43f0-be19-8d5109b15b5f">
 
 The arhictecture that we used remains simple with a pretrained DistilBert model from which the pooled output are then concatenated with additional features from the aspect-term of the sample and fed to a multi-layer perceptron.
 
-![images\model.png](https://raw.githubusercontent.com/antoine311200/nlp-aspect-term-polarity/test-models/images/model.png?token=GHSAT0AAAAAACG4K2F3V2A4RVTV2ZP2OLMAZQQFQOQ)
-
+<img width="777" alt="model" src="https://github.com/antoine311200/nlp-aspect-term-polarity/assets/41137133/db3b91a5-d3fd-4a79-9c9e-c6d06c81098a">
 
 
 
